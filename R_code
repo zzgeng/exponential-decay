@@ -1,0 +1,27 @@
+expo_decay <- function(directory){
+  input <- directory
+  #input <- read.delim(directory, head = T)
+  output <- as.data.frame(input[,1])
+  model_results <- as.data.frame(input[,1])
+  scaled_data <- as.data.frame(input[,1])
+  for (x in 2:ncol(input)) {
+    data_0 <- data.frame(x = input[, 1], y = input[, x])
+    ##first use half of the minimum value of y as intercept to do the linear regressio between time and log(y)
+    ##formula: y = a*e^bx + c
+    data_0$y <- data_0$y/min(data_0$y)
+    scaled_data <- cbind(scaled_data, data_0[,2])
+    intercept <- min(data_0$y) * 0.5
+    model_0 <- lm(log(y - intercept) ~ x, data = data_0)
+    start <- list(a = exp(coef(model_0)[1]), b = coef(model_0)[2], c = intercept)
+    ##do non-linear regression
+    model_nls <- nls(y ~a*exp(b*x) + c, data = data_0, start = start, trace = T, control = list(warnOnly = T))
+    data_1 <- data.frame(data_0[,1], data_0[,2]-predict(model_nls))
+    output <- cbind(output, data_1[,2])
+    ##save fitted model, after normalization against the minimum value of each cells
+    model_results <- cbind(model_results, predict(model_nls))
+  }
+  colnames(output) <- colnames(input)
+  colnames(scaled_data) <- colnames(input)
+  ##write.table(output, output_dir, col.names = T, row.names = F, sep = "\t", quote = F)
+  results <- list(output, scaled_data, model_results)
+}
